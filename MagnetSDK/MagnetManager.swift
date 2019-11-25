@@ -9,6 +9,11 @@
 import UIKit
 import ARKit
 
+enum MagnetOrientation:String {
+    case UP = "up"
+    case LEFT = "left"
+}
+
 class MagnetManager: NSObject {
     
     let rest = RestManager()
@@ -104,10 +109,15 @@ class MagnetManager: NSObject {
 
                     //2. Convert The UIImage To A CGImage
                     guard let cgImage = image.cgImage else { return }
-
+                    
+                    var orientation = MagnetOrientation.UP
+                    if image.size.width < image.size.height {
+                        orientation = MagnetOrientation.LEFT
+                    }
                     //4. Create A Custom AR Reference Image With A Unique Name
-                    let customARReferenceImage = ARReferenceImage(cgImage, orientation: CGImagePropertyOrientation.up, physicalWidth: CGFloat(magnetRecord.physicalSize))
+                    let customARReferenceImage = ARReferenceImage(cgImage, orientation: .up, physicalWidth: CGFloat(magnetRecord.physicalSize))
                     customARReferenceImage.name = magnetRecord.key
+                    customARReferenceImage.accessibilityValue = orientation.rawValue
 
                     //4. Insert The Reference Image Into Our Set
                     customReferenceSet.insert(customARReferenceImage)
@@ -124,7 +134,7 @@ class MagnetManager: NSObject {
         return customReferenceSet
     }
     
-    public func synchronize() {
+    public func sync(completion: @escaping () -> Void) {
         guard let url = URL(string: NetworkConstants.apiURL+NetworkConstants.magnetEP) else { return }
         
         rest.makeRequest(toURL: url, withHttpMethod: .get) { (results) in
@@ -147,6 +157,7 @@ class MagnetManager: NSObject {
                 }
             }
             downloadGroup.wait()
+            completion()
         }
     }
 }

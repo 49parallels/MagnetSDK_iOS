@@ -15,6 +15,7 @@ class Canvas: SCNNode {
     //private let anchor:
     private let plane: SCNPlane
     private let planeNode: SCNNode
+    private let rotated: MagnetOrientation
     
     init(anchor: ARImageAnchor) {
         //self.anchor = anchor
@@ -23,7 +24,8 @@ class Canvas: SCNNode {
         let width = anchor.referenceImage.physicalSize.width
         let height = anchor.referenceImage.physicalSize.height
         
-        self.plane = SCNPlane(width: width, height: height)
+        self.rotated = MagnetOrientation(rawValue: anchor.referenceImage.accessibilityValue ?? MagnetOrientation.UP.rawValue) ?? MagnetOrientation.UP
+        self.plane = SCNPlane(width: CGFloat(width), height: height)
         self.planeNode = SCNNode(geometry: self.plane)
         
         super.init()
@@ -65,10 +67,16 @@ class Canvas: SCNNode {
     /// Scale the diffuse component of the material
     private func updateMaterialDiffuseScale() {
         guard let material = plane.materials.first else { return }
-        
-        //        let width = Float(self.plane.width)
-        //        let height = Float(self.plane.height)
-        //        material.diffuse.contentsTransform = SCNMatrix4MakeScale(width, height, 1.0)
+        print("planeW:", plane.width, "planeH:", plane.height)
+//        let width = Float(self.plane.width)
+//        let height = Float(self.plane.height)
+//        material.diffuse.contentsTransform = SCNMatrix4MakeScale(width, height, 1.0)
+//        if self.rotated == MagnetOrientation.LEFT {
+//            let translation = SCNMatrix4MakeTranslation(0, -1, 0)
+//            let rotation = SCNMatrix4MakeRotation(Float.pi / 2, 0, 0, 1)
+//            let transform = SCNMatrix4Mult(translation, rotation)
+//            material.diffuse.contentsTransform = transform
+//        }
     }
     
     required init?(coder aDecoder: NSCoder) {

@@ -8,6 +8,7 @@
 import UIKit
 import SceneKit
 import ARKit
+import Firebase
 
 public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
     
@@ -32,6 +33,7 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
     public init(_ key: String, _ parent: UIView) {
         super.init()
         
+        FirebaseApp.configure()
         MagnetDB.shared.configure()
         magnetManager = MagnetManager(key)
         
@@ -41,15 +43,16 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.autoenablesDefaultLighting = true
         sceneView.automaticallyUpdatesLighting = true
         parent.addSubview(sceneView)
-            
+        
         resetTracking()
     }
+    
     
     convenience override init() {
         self.init("", UIView(frame: CGRect.zero)) // calls above mentioned controller with default name
     }
     
-    @objc private func resetTracking() {
+    public func resetTracking() {
         clearNodes()
         
 // LOCAL TEST
@@ -91,13 +94,15 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         guard let imageAnchor = anchor as? ARImageAnchor else {
             return
         }
+        
         updateQueue.async {
             if self.walls[anchor.identifier] == nil {
+                
                 let referenceName = imageAnchor.referenceImage.name!
                 let videoMediaURL = NetworkConstants.apiURL+NetworkConstants.mediaEP+referenceName+"/480p.m3u8"
                 
                 print("Video Reference KEY:", referenceName, "URL:" ,videoMediaURL)
-                self.videoPlayer = VideoPlayer(streamURL: URL(string: videoMediaURL)!)
+                self.videoPlayer = VideoPlayer(streamURL: URL(string: videoMediaURL)!, key: referenceName)
                 
                 let wall = Canvas(anchor: imageAnchor)
                 self.walls[anchor.identifier] = wall
@@ -115,6 +120,7 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
                     self.videoPlayer?.play()
                 }
                 
+
                 //self.displayWebView(on: wall, yOffset: imageAnchor.referenceImage.physicalSize.height, xOffset: imageAnchor.referenceImage.physicalSize.width)
             } else {
                 self.videoPlayers[anchor.identifier]?.play()
@@ -210,7 +216,8 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         }
     }
     
-    public func synchronize() {
-        magnetManager.synchronize()
+    public func sync(completion: @escaping () -> Void) {
+        print("Synchronizing ...")
+        magnetManager.sync(completion: completion)
     }
 }

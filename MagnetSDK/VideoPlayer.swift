@@ -8,6 +8,7 @@
 
 import SpriteKit
 import AVFoundation
+import Firebase
 
 class VideoPlayer: NSObject {
 
@@ -27,7 +28,12 @@ class VideoPlayer: NSObject {
         }
     }
 
-    init(streamURL: URL) {
+    init(streamURL: URL, key: String? = nil) {
+
+        Analytics.logEvent("magnet_anchored", parameters: [
+            "magnet_id": "\(key ?? "unknown")"
+        ])
+        
         let playerItem = AVPlayerItem(url: streamURL)
         playerItem.preferredForwardBufferDuration = TimeInterval(1)
         
@@ -47,6 +53,7 @@ class VideoPlayer: NSObject {
         scene.addChild(videoNode)
         
         super.init()
+
         
         playerStatus = player.timeControlStatus
         timeControlStateObservation = player.observe(\.timeControlStatus) { (player, _) in
@@ -55,6 +62,16 @@ class VideoPlayer: NSObject {
         playerStateObservation = player.observe(\.status, changeHandler: { (player, _) in
             print("player.status: \(player.status)")
         })
+        
+        let timeScale = CMTimeScale(NSEC_PER_SEC)
+        let time = CMTime(seconds: 3.0, preferredTimescale: timeScale)
+        
+        player.addPeriodicTimeObserver(forInterval: time, queue: .main) { [weak self] time in
+            Analytics.logEvent("magnet_playing", parameters: [
+                "magnet_id": "\(key ?? "unknown")",
+                "magnet_time": time.positionalTime
+            ])
+        }
         
         NotificationCenter.default.addObserver(self, selector: #selector(VideoPlayer.playerItemFinished(_:)),
                                                name: NSNotification.Name.AVPlayerItemDidPlayToEndTime,
@@ -105,5 +122,21 @@ extension AVPlayer.Status: CustomDebugStringConvertible {
         case .readyToPlay: return "readyToPlay"
         case .unknown: return "unknown"
         }
+    }
+}
+
+extension CMTime {
+    var roundedSeconds: TimeInterval {
+        return seconds.rounded()
+    }
+    var hours:  Int { return Int(roundedSeconds / 3600) }
+    var minute: Int { return Int(roundedSeconds.truncatingRemainder(dividingBy: 3600) / 60) }
+    var second: Int { return Int(roundedSeconds.truncatingRemainder(dividingBy: 60)) }
+    var positionalTime: String {
+        return hours > 0 ?
+            String(format: "%d:%02d:%02d",
+                   hours, minute, second) :
+            String(format: "%02d:%02d",
+                   minute, second)
     }
 }
