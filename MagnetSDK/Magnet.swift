@@ -8,7 +8,8 @@
 import UIKit
 import SceneKit
 import ARKit
-import Firebase
+import NotificationCenter
+
 
 public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
     
@@ -26,6 +27,9 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
     
     private var synced: Bool = false
     
+    public var events = Events.shared
+    public var settings = Settings()
+    
     let updateQueue = DispatchQueue(label: Bundle.main.bundleIdentifier! +
         ".serialSceneKitQueue")
     
@@ -33,7 +37,6 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
     public init(_ key: String, _ parent: UIView) {
         super.init()
         
-        FirebaseApp.configure()
         MagnetDB.shared.configure()
         magnetManager = MagnetManager(key)
         
@@ -43,6 +46,9 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.autoenablesDefaultLighting = true
         sceneView.automaticallyUpdatesLighting = true
         parent.addSubview(sceneView)
+        
+        // subscribe to shake event
+        subscribe()
         
         resetTracking()
     }
@@ -56,7 +62,7 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         clearNodes()
         
 // LOCAL TEST
-//
+
 //        guard let referenceImages = ARReferenceImage.referenceImages(inGroupNamed: "AR Resources", bundle: nil) else {
 //            fatalError("Missing expected asset catalog resources.")
 //        }
@@ -69,7 +75,7 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         let configuration = ARImageTrackingConfiguration()
 
         if let referenceImages = magnetManager.getMagnetReferences() {
-            print("referenceImages", referenceImages)
+            print("AR - referenceImages:", referenceImages)
             configuration.maximumNumberOfTrackedImages = 10
             configuration.trackingImages = referenceImages
 
@@ -99,7 +105,11 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
             if self.walls[anchor.identifier] == nil {
                 
                 let referenceName = imageAnchor.referenceImage.name!
-                let videoMediaURL = NetworkConstants.apiURL+NetworkConstants.mediaEP+referenceName+"/480p.m3u8"
+                let videoMediaURL = NetworkConstants.mediaEP+referenceName+"/playlist.m3u8"
+                
+//                guard  let videoMediaURL = Bundle.main.path(forResource: referenceName, ofType: "mp4") else {
+//                    return
+//                }
                 
                 print("Video Reference KEY:", referenceName, "URL:" ,videoMediaURL)
                 self.videoPlayer = VideoPlayer(streamURL: URL(string: videoMediaURL)!, key: referenceName)
@@ -132,9 +142,6 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         if let imageAnchor = anchor as? ARImageAnchor {
             if !imageAnchor.isTracked {
                 print("not tracking anything")
-//                videoPlayers.forEach { (player) in
-//                    player.value.pause()
-//                }
             }
         }
         
@@ -219,5 +226,15 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
     public func sync(completion: @escaping () -> Void) {
         print("Synchronizing ...")
         magnetManager.sync(completion: completion)
+    }
+    
+    func subscribe() {
+        NotificationCenter.default.addObserver(self, selector: #selector(self.onShake), name: .deviceDidShakeNotification, object: nil)
+    }
+    
+    @objc func onShake() {
+        if (settings.shakeToRestart) {
+            print("Shake it baby ... do you wanna dance?")
+        }
     }
 }

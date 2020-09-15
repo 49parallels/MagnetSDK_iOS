@@ -10,8 +10,8 @@ import Foundation
 
 
 class NetworkConstants {
-    static let mediaEP = "media/"
-    static let refsEP = "refs/"
-    static let magnetEP = "magnet/"
     static let apiURL = "https://api.49parallels.com/"
+    static let mediaEP = NetworkConstants.apiURL+"media/"
+    static let refsEP = NetworkConstants.apiURL+"refs/"
+    static let magnetEP = NetworkConstants.apiURL+"magnet/"
 }

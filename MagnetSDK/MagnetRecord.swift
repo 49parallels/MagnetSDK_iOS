@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import ARKit
 
 struct MagnetRecord: Codable {
     var key: String
@@ -21,6 +22,24 @@ struct MagnetRecord: Codable {
 extension MagnetRecord {
     func exists() -> Bool {
         return MagnetDB.shared.exists(key: self.key)
+    }
+    
+    func asReference() -> ARReferenceImage? {
+        do {
+            let documentsDirectory = PathHelper.getDocumentsDirectory()
+            let fileUrl = documentsDirectory.appendingPathComponent(key)
+            let imageData = try Data(contentsOf: fileUrl)
+            guard let image = UIImage(data: imageData) else { return nil}
+            guard let cgImage = image.cgImage else { return nil}
+            let orientation = MagnetOrientation.UP
+            let customARReferenceImage = ARReferenceImage(cgImage, orientation: .up, physicalWidth: CGFloat(physicalSize))
+            customARReferenceImage.name = key
+            customARReferenceImage.accessibilityValue = orientation.rawValue
+            return customARReferenceImage
+        } catch {
+            print("Error Generating Image == \(error)")
+        }
+        return nil
     }
 }
 
@@ -39,24 +58,3 @@ extension MagnetRecord: SQLTable {
       """
     }
 }
-
-//import RealmSwift
-//
-//@objcMembers class MagnetRecord: Object {
-//    dynamic var id: String = ""
-//    dynamic var photoKey: String = ""
-//    dynamic var videoKey: String = ""
-//    dynamic var photoWidth: String = ""
-//
-//    override class func primaryKey() -> String? {
-//        return "id"
-//    }
-//
-//    convenience init(id: String, photoKey: String, videoKey: String, photoWidth: String) {
-//        self.init()
-//        self.id = id
-//        self.photoKey = photoKey
-//        self.videoKey = videoKey
-//        self.photoWidth = photoWidth
-//    }
-//}

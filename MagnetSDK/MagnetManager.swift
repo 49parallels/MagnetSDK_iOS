@@ -37,7 +37,7 @@ class MagnetManager: NSObject {
     }
     
     private func downloadImage(photoKey: String, completion: @escaping () -> Void) {
-        if let photoUrl = URL(string: NetworkConstants.apiURL+NetworkConstants.refsEP+photoKey) {
+        if let photoUrl = URL(string: NetworkConstants.refsEP+photoKey) {
             getData(from: photoUrl) { data, response, error in
                 guard let data = data, error == nil else { return }
                 self.save(file: self.clearKey(named: photoKey), data: data)
@@ -47,7 +47,7 @@ class MagnetManager: NSObject {
     }
     
     private func downloadVideo(videoKey: String, completion: @escaping () -> Void) {
-        if let videoUrl = URL(string:NetworkConstants.apiURL+NetworkConstants.mediaEP+videoKey) {
+        if let videoUrl = URL(string: NetworkConstants.mediaEP+videoKey) {
             getData(from: videoUrl) { data, response, error in
                 guard let data = data, error == nil else { return }
                 self.save(file: self.clearKey(named: videoKey)+".mp4", data: data)
@@ -94,57 +94,27 @@ class MagnetManager: NSObject {
     func getMagnetReferences() -> Set<ARReferenceImage>?{
         
         var customReferenceSet = Set<ARReferenceImage>()
-        let documentsDirectory = PathHelper.getDocumentsDirectory()
         
-        do {
-            let magnets = MagnetDB.shared.all()//realm.objects(MagnetRecord.self)
+        let magnets = MagnetDB.shared.all()
 
-            magnets.forEach { (magnetRecord) in
-                do{
-                    //1. Create A Data Object From Our URL
-                    let fileUrl = documentsDirectory.appendingPathComponent(magnetRecord.key)
-                    let imageData = try Data(contentsOf: fileUrl)
-
-                    guard let image = UIImage(data: imageData) else { return }
-
-                    //2. Convert The UIImage To A CGImage
-                    guard let cgImage = image.cgImage else { return }
-                    
-                    var orientation = MagnetOrientation.UP
-                    if image.size.width < image.size.height {
-                        orientation = MagnetOrientation.LEFT
-                    }
-                    //4. Create A Custom AR Reference Image With A Unique Name
-                    let customARReferenceImage = ARReferenceImage(cgImage, orientation: .up, physicalWidth: CGFloat(magnetRecord.physicalSize))
-                    customARReferenceImage.name = magnetRecord.key
-                    customARReferenceImage.accessibilityValue = orientation.rawValue
-
-                    //4. Insert The Reference Image Into Our Set
-                    customReferenceSet.insert(customARReferenceImage)
-                    //print("customReference", customReferenceSet)
-                    //print("ARReference Image == \(customARReferenceImage)")
-                }catch{
-                    print("Error Generating Images == \(error)")
-                }
-            }
-        } catch {
-            print("Error Reading Directory Contents == \(error)")
+        magnets.forEach { (magnetRecord) in
+            guard let magnetAsReference = magnetRecord.asReference() else { return }
+            customReferenceSet.insert(magnetAsReference)
         }
-        //5. Return The Set
+        
         return customReferenceSet
     }
     
     public func sync(completion: @escaping () -> Void) {
-        guard let url = URL(string: NetworkConstants.apiURL+NetworkConstants.magnetEP) else { return }
+        guard let url = URL(string: NetworkConstants.magnetEP) else { return }
         
         rest.makeRequest(toURL: url, withHttpMethod: .get) { (results) in
             let downloadGroup = DispatchGroup()
             if let data = results.data {
                 let decoder = JSONDecoder()
                 do {
-                    let decoder = JSONDecoder()
                     let magnetRoot = try decoder.decode(MagneticField.self, from: data)
-                    
+                    print("Magnets:", magnetRoot)
                     magnetRoot.magnets.filter{ !$0.exists() }.forEach({ (magnet) in
                         downloadGroup.enter()
                         self.save(key: magnet.key, photoWidth: magnet.physicalSize, completion: {

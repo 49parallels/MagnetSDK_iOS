@@ -8,7 +8,7 @@
 
 import SpriteKit
 import AVFoundation
-import Firebase
+//import Firebase
 
 class VideoPlayer: NSObject {
 
@@ -18,7 +18,9 @@ class VideoPlayer: NSObject {
     private let videoNode: SKVideoNode
     private var playerStateObservation: NSKeyValueObservation?
     private var timeControlStateObservation: NSKeyValueObservation?
-
+    
+    private var events: Events?
+    
     private(set) var playerStatus: AVPlayer.TimeControlStatus = .paused {
         didSet {
             print("\(oldValue) -> \(playerStatus)")
@@ -29,16 +31,12 @@ class VideoPlayer: NSObject {
     }
 
     init(streamURL: URL, key: String? = nil) {
-
-        Analytics.logEvent("magnet_anchored", parameters: [
-            "magnet_id": "\(key ?? "unknown")"
-        ])
-        
         let playerItem = AVPlayerItem(url: streamURL)
         playerItem.preferredForwardBufferDuration = TimeInterval(1)
         
         
         player = AVPlayer(playerItem: playerItem)
+        player.isMuted = Settings().soundOn
         player.automaticallyWaitsToMinimizeStalling = true
         player.playImmediately(atRate: 1)
         
@@ -53,7 +51,13 @@ class VideoPlayer: NSObject {
         scene.addChild(videoNode)
         
         super.init()
-
+        
+        guard let magnetKey = key else {
+            return
+        }
+        
+        events = Events()
+        events?.onAnchored(magnetKey)
         
         playerStatus = player.timeControlStatus
         timeControlStateObservation = player.observe(\.timeControlStatus) { (player, _) in
@@ -61,16 +65,16 @@ class VideoPlayer: NSObject {
         }
         playerStateObservation = player.observe(\.status, changeHandler: { (player, _) in
             print("player.status: \(player.status)")
+            if player.status == .readyToPlay {
+                self.player.play()
+            }
         })
         
         let timeScale = CMTimeScale(NSEC_PER_SEC)
         let time = CMTime(seconds: 3.0, preferredTimescale: timeScale)
         
         player.addPeriodicTimeObserver(forInterval: time, queue: .main) { [weak self] time in
-            Analytics.logEvent("magnet_playing", parameters: [
-                "magnet_id": "\(key ?? "unknown")",
-                "magnet_time": time.positionalTime
-            ])
+            self?.events?.onPlaying(magnetKey, time.positionalTime)
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(VideoPlayer.playerItemFinished(_:)),
@@ -85,7 +89,7 @@ class VideoPlayer: NSObject {
     
     func play() {
         print("player.status before play: \(player.status)")
-        player.play()
+        //player.play()
     }
     
     func pause() {
