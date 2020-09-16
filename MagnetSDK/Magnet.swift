@@ -47,6 +47,7 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.automaticallyUpdatesLighting = true
         parent.addSubview(sceneView)
         
+        
         // subscribe to shake event
         subscribe()
         
@@ -234,7 +235,8 @@ public class Magnet: NSObject, ARSCNViewDelegate, ARSessionDelegate {
     
     @objc func onShake() {
         if (settings.shakeToRestart) {
-            print("Shake it baby ... do you wanna dance?")
+            // pause video
+            events.onShake()
         }
     }
 }

@@ -18,4 +18,5 @@ public class Events {
             NetworkHelper.shared.start()
         }
     }
+    public var onShake:()->() = {}
 }
